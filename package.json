@@ -1,0 +1,17 @@
+{
+  "name": "llvm_test",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "llvm-bindings": "^0.4.2"
+  },
+  "trustedDependencies": [
+    "llvm-bindings"
+  ]
+}
