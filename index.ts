@@ -11,13 +11,13 @@ const output = 'toto'
 const context = new llvm.LLVMContext();
 const module = new llvm.Module(output, context);
 const builder = new llvm.IRBuilder(context);
-//module.setSourceFileName('index.ts')
+module.setSourceFileName('./index.ts')
 
 function getAdd() {
     const returnType = builder.getInt32Ty();
     const paramTypes = [builder.getInt32Ty(), builder.getInt32Ty()];
     const functionType = llvm.FunctionType.get(returnType, paramTypes, false);
-    const addFunc = llvm.Function.Create(functionType, 0, 'add', module);
+    const addFunc = llvm.Function.Create(functionType, 0/*llvm.Function.LinkageTypes.ExternalLinkage*/, 'add', module);
 
     const entryBB = llvm.BasicBlock.Create(context, 'entry', addFunc);
     builder.SetInsertPoint(entryBB);
@@ -50,7 +50,7 @@ function getMain() {
     const result = builder.CreateCall(addFunc, [
         llvm.ConstantInt.get(context, new llvm.APInt(32, 2, false)),
         llvm.ConstantInt.get(context, new llvm.APInt(32, 2, false))
-    ], 'add');
+    ]);
     builder.CreateRet(result);
 
     if (llvm.verifyFunction(func)) {
@@ -74,24 +74,39 @@ if (llvm.verifyModule(module)) {
 console.log(module.print());
 llvm.WriteBitcodeToFile(module, `build/${output}.ll`)
 
-exec([
-    'clang',
-    '-o', `build/${output}.exe`,
-    `build/${output}.ll`
-])
-
-// exec([
-//     'clang',
-//     '-o', `build/${output}.wasm`,
-//     '-target', 'wasm32',
-//     '-nostdlib',
-//     '-Wl,--no-entry',
-//     '-Wl,--export-all',
-//     `build/${output}.ll`
-// ])
 
 console.log(`Writing LLVM sources (for debug purpose) to ./build/${output}.ir`)
 writeFileSync(`build/${output}.ir`, module.print(), { encoding: 'utf8' })
+
+exec([
+    'clang',
+    '-o', `build/${output}.exe`,
+    '-O3',
+    `build/${output}.ll`
+])
+
+exec([
+    'clang',
+    '-o', `build/${output}.unoptimized.wasm`,
+    '-target', 'wasm32-unknown-unknown',
+    '-nostdlib',
+    //'-O3',
+    '-Wl,--no-entry',
+    '-Wl,--allow-undefined',
+    //'-Wl,--import-memory',
+    //'-Wl,--import-table',
+    '-Wl,--export=main',
+    '-Wl,--export=add',
+    `build/${output}.ll`
+])
+
+exec([
+    'wasm-opt',
+    '-O3',
+    '--strip',
+    `build/${output}.unoptimized.wasm`,
+    '-o', `build/${output}.wasm`
+])
 
 function exec(command: string[]) {
     console.log(`Executing: ${command.join(' ')}`)
