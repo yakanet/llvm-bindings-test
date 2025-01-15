@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { platform } from 'node:os'
 
-const output = 'toto'
+const output = 'app'
 
 const context = new llvm.LLVMContext();
 const module = new llvm.Module(output, context);
@@ -72,17 +72,17 @@ console.log(module.print());
 
 await rm('build', { force: true, recursive: true })
 await mkdir('build', { recursive: true })
-llvm.WriteBitcodeToFile(module, `build/${output}.ll`)
+llvm.WriteBitcodeToFile(module, `build/${output}.bc`)
 
 console.log(`Writing LLVM sources (for debug purpose) to ./build/${output}.ir`)
-await writeFile(`build/${output}.ir`, module.print(), { encoding: 'utf8' })
+await writeFile(`build/${output}.ll`, module.print(), { encoding: 'utf8' })
 
 const executableExt = platform() === 'win32' ? '.exe' : '';
 exec([
     'clang',
     '-o', `build/${output}${executableExt}`,
     '-O3',
-    `build/${output}.ll`
+    `build/${output}.bc`
 ])
 
 exec([
@@ -97,7 +97,7 @@ exec([
     //'-Wl,--import-table',
     '-Wl,--export=main',
     '-Wl,--export=add',
-    `build/${output}.ll`
+    `build/${output}.bc`
 ])
 
 exec([
