@@ -1,10 +1,7 @@
-import llvm, { PointerType, Type } from "llvm-bindings";
+import llvm from "llvm-bindings";
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-
-
-rmSync('build', { force: true })
-mkdirSync('build', { recursive: true })
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { platform } from 'node:os'
 
 const output = 'toto'
 
@@ -61,7 +58,7 @@ function getMain() {
 function getPrintf() {
     return module.getOrInsertFunction('printf', llvm.FunctionType.get(
         llvm.IntegerType.getInt32Ty(context),
-        [PointerType.get(Type.getInt8Ty(context), 0)],
+        [llvm.PointerType.get(llvm.Type.getInt8Ty(context), 0)],
         true
     ))
 }
@@ -72,15 +69,18 @@ if (llvm.verifyModule(module)) {
     throw 'Verifying module failed';
 }
 console.log(module.print());
+
+await rm('build', { force: true, recursive: true })
+await mkdir('build', { recursive: true })
 llvm.WriteBitcodeToFile(module, `build/${output}.ll`)
 
-
 console.log(`Writing LLVM sources (for debug purpose) to ./build/${output}.ir`)
-writeFileSync(`build/${output}.ir`, module.print(), { encoding: 'utf8' })
+await writeFile(`build/${output}.ir`, module.print(), { encoding: 'utf8' })
 
+const executableExt = platform() === 'win32' ? '.exe' : '';
 exec([
     'clang',
-    '-o', `build/${output}.exe`,
+    '-o', `build/${output}${executableExt}`,
     '-O3',
     `build/${output}.ll`
 ])
